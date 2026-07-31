@@ -7,7 +7,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-cyberwolf}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cyberwolf_dev_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-development-only-postgres-password}
       POSTGRES_DB: ${POSTGRES_DB:-cyberwolf_db}
     ports:
       - "5432:5432"
@@ -26,8 +26,8 @@ services:
     container_name: cyberwolf-backend
     restart: always
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-cyberwolf}:${POSTGRES_PASSWORD:-cyberwolf_dev_password}@db:5432/${POSTGRES_DB:-cyberwolf_db}
-      - SECRET_KEY=${SECRET_KEY:-cyberwolf_dev_secret_key_change_in_prod_32b}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-cyberwolf}:${POSTGRES_PASSWORD:-development-only-postgres-password}@db:5432/${POSTGRES_DB:-cyberwolf_db}
+      - SECRET_KEY=${SECRET_KEY:-development-only-placeholder-change-before-production}
       - ENVIRONMENT=development
     ports:
       - "8000:8000"

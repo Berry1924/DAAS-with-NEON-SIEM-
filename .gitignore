@@ -1,6 +1,8 @@
 # Environment & Secrets
 .env
 .env.local
+.env.*
+!.env.example
 *.env
 *.pem
 *.key
@@ -36,3 +38,4 @@ Thumbs.db
 # Database / Storage local data
 postgres_data/
 *.sqlite3
+*.db

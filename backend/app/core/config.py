@@ -1,3 +1,4 @@
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Union
 import json
@@ -8,13 +9,15 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     API_V1_STR: str = "/api/v1"
     
-    SECRET_KEY: str = "cyberwolf_default_dev_secret_key_never_use_in_prod_32b"
+    # Deliberately non-secret local-development placeholders. Deployments must
+    # override these values through environment configuration.
+    SECRET_KEY: str = "development-only-placeholder-change-before-production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
     
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "cyberwolf"
-    POSTGRES_PASSWORD: str = "cyberwolf_dev_password"
+    POSTGRES_PASSWORD: str = "development-only-postgres-password"
     POSTGRES_DB: str = "cyberwolf_db"
     DATABASE_URL: Union[str, None] = None
 
@@ -29,6 +32,15 @@ class Settings(BaseSettings):
     MAX_PAGE_SIZE: int = 100
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    @model_validator(mode="after")
+    def require_non_placeholder_production_credentials(self):
+        """Prevent accidental production startup with committed dev placeholders."""
+        if self.ENVIRONMENT.lower() == "production":
+            placeholders = ("development-only-placeholder", "development-only-postgres-password")
+            if self.SECRET_KEY.startswith(placeholders) or self.POSTGRES_PASSWORD.startswith(placeholders):
+                raise ValueError("Production SECRET_KEY and POSTGRES_PASSWORD must be supplied through environment configuration")
+        return self
 
     def get_database_url(self) -> str:
         if self.DATABASE_URL:
