@@ -205,6 +205,14 @@ def test_inert_evidence_and_sql_injection_safety():
     assert resp.status_code == 200
     assert resp.json()["total"] == 0
 
+    # SQL wildcard characters remain query data. The search endpoint may use
+    # their LIKE semantics, but pagination keeps all results bounded and no
+    # SQL is interpolated from user input.
+    for query in ["%", "_"]:
+        wildcard_resp = client.get("/api/v1/events", params={"q": query, "page_size": 2}, headers=headers)
+        assert wildcard_resp.status_code == 200
+        assert len(wildcard_resp.json()["items"]) <= 2
+
 # 6. Stats Endpoint Test
 def test_event_stats_endpoint():
     headers = get_headers("viewer_exp", "VIEWER")
