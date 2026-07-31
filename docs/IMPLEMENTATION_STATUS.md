@@ -32,7 +32,7 @@ A comprehensive engineering audit of the workspace (`e:\neonprojects`) was perfo
 | **M02** | Authentication / RBAC | `VERIFIED` | P0 | M00, M01 |
 | **M03** | Ingestion | `VERIFIED` | P0 | M00, M01, M02 |
 | **M04** | Parsing & Normalization | `VERIFIED` | P0 | M03 |
-| **M05** | Event Storage | `NOT_STARTED` | P0 | M01, M04 |
+| **M05** | Event Storage | `VERIFIED` | P0 | M01, M04 |
 | **M06** | Detection | `NOT_STARTED` | P0 | M04, M05 |
 | **M07** | Alerts | `NOT_STARTED` | P0 | M06 |
 | **M08** | Correlation | `NOT_STARTED` | P0 | M07 |
@@ -109,15 +109,15 @@ A comprehensive engineering audit of the workspace (`e:\neonprojects`) was perfo
 
 ---
 
-### M05: Event Storage
-- **Requirement**: `CWS-BE-001 Sec 8, 31`, `CWS-AF-001 Flow AF-11`. Immutable evidence store for normalized events in PostgreSQL with relational indexing (`timestamp`, `event_type`, `source_ip`, `username`, `hostname`).
-- **Endpoints**: `GET /api/v1/events` (with time, source_type, event_type, IP, outcome filtering and pagination).
-- **Current Implementation**: Table schema defined.
-- **Missing Work**: Event repository (`backend/app/repositories/event_repository.py`), query filters with allowlisted sorting fields, paginated responses.
+### M05: Event Storage, Search & Evidence Explorer (M05 Certified)
+- **Requirement**: `CWS-PRD-001`, `CWS-TRD-001 Sec 12`, `CWS-AF-001 Flow AF-05`, `CWS-BE-001 Sec 19`, `CWS-IP-001`. Bounded, paginated Event search and retrieval API (`GET /api/v1/events`, `GET /api/v1/events/{id}`, `GET /api/v1/events/stats`).
+- **Endpoints Implemented**: `GET /api/v1/events`, `GET /api/v1/events/{id}`, `GET /api/v1/events/stats`.
+- **Current Implementation**: `EventRepository.search()` with typed filters (`source_type`, `event_type`, `severity`, `outcome`, `hostname`, `username`, `source_ip`, `destination_ip`, `asset_id`, `start_time`, `end_time`), allowlisted sorting (`timestamp DESC`, `id DESC` tie-breaker), bounded pagination (`1 <= page_size <= 100`), read-only evidence immutability (no mutation endpoints), `EventStatsResponse` aggregation, and RBAC authorization (`ADMIN`, `ANALYST`, `VIEWER` allowed).
+- **Missing Work**: None for M05 Event Storage & Evidence Explorer module.
 - **Dependencies**: M01, M04.
-- **Security Considerations**: SQL injection prevention via SQLAlchemy ORM, query page size capping (max 100).
-- **Required Tests**: Event query pagination test, filter test, IMMUTABILITY verification.
-- **Status**: `NOT_STARTED`
+- **Security Considerations**: Read-only evidence immutability, query size bounding (max 100 per page), SQL injection prevention via parameterized SQLAlchemy queries, raw evidence treated as inert data, RBAC protection.
+- **Required Tests**: `py -3.12 -m pytest -v` (70/70 passed across auth, users, database, health, ingestion, normalization, explorer).
+- **Status**: `VERIFIED`
 
 ---
 

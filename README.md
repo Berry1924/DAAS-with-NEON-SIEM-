@@ -123,7 +123,7 @@ Cyberwolf SIEM is engineered as a **Secure Modular Monolith**:
 | **M02** | Authentication & RBAC | `VERIFIED` | P0 | JWT auth, bcrypt bounds, User Admin, `ADMIN`/`ANALYST`/`VIEWER` RBAC (`31/31 tests passed`). |
 | **M03** | Telemetry Ingestion | `VERIFIED` | P0 | Single & batch REST intake, 1 MiB body limit, idempotency (`49/49 tests passed`). |
 | **M04** | Parsing & Normalization | `VERIFIED` | P0 | Linux auth & JSON parsers, UTC normalizer, Event ORM (`59/59 tests passed`). |
-| **M05** | Event Storage & Explorer | `NOT_STARTED` | P0 | Event query filters & paginated search repository. |
+| **M05** | Event Storage & Explorer | `VERIFIED` | P0 | Bounded event search, filters, stats, read-only evidence (`70/70 tests passed`). |
 | **M06** | Detection Engine | `NOT_STARTED` | P0 | Declarative rule evaluator & threshold window state. |
 | **M07** | Alert Management | `NOT_STARTED` | P0 | Alert lifecycle management & `alert_events` linking. |
 | **M08** | Correlation Engine | `NOT_STARTED` | P0 | Entity/time correlation grouping multi-alert attacks. |
@@ -219,7 +219,7 @@ py -3.12 -m pytest -v
 
 Expected Output:
 ```text
-============================= 59 passed in 41.97s =============================
+============================= 70 passed in 52.31s =============================
 ```
 
 For complete test case documentation, catalog, and security invariants, see [TEST_SUITE_SPECIFICATION.md](file:///e:/neonprojects/docs/TEST_SUITE_SPECIFICATION.md).
