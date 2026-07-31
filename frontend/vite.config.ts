@@ -9,7 +9,10 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        // This is used by the Vite server, never by the browser. Docker
+        // Compose supplies the backend service hostname; local host runs use
+        // the localhost default below.
+        target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:8000',
         changeOrigin: true,
       }
     }
