@@ -38,7 +38,12 @@ class Settings(BaseSettings):
         """Prevent accidental production startup with committed dev placeholders."""
         if self.ENVIRONMENT.lower() == "production":
             placeholders = ("development-only-placeholder", "development-only-postgres-password")
-            if self.SECRET_KEY.startswith(placeholders) or self.POSTGRES_PASSWORD.startswith(placeholders):
+            if (
+                not self.SECRET_KEY.strip()
+                or not self.POSTGRES_PASSWORD.strip()
+                or self.SECRET_KEY.startswith(placeholders)
+                or self.POSTGRES_PASSWORD.startswith(placeholders)
+            ):
                 raise ValueError("Production SECRET_KEY and POSTGRES_PASSWORD must be supplied through environment configuration")
         return self
 
