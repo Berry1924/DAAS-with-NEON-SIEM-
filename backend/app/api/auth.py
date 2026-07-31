@@ -2,11 +2,11 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import settings
-from backend.app.core.security import verify_password, create_access_token
+from backend.app.core.security import verify_password, create_access_token, validate_password_strength
 from backend.app.db.session import get_db
 from backend.app.models.user import User
 from backend.app.models.audit_log import AuditLog
@@ -32,15 +32,9 @@ def login(
     db: Session = Depends(get_db)
 ) -> Any:
     """Authenticate user with username and password, returning JWT access token."""
+    request_id = getattr(request.state, "request_id", None)
     username = None
     password = None
-
-    # Check if request content-type is form-data or json
-    content_type = request.headers.get("content-type", "")
-
-    if "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
-        # Parsed asynchronously or via form data if handled separately, but we can read request.form()
-        pass
 
     if login_data:
         username = login_data.username
@@ -63,12 +57,13 @@ def login(
     )
 
     if not user or not verify_password(password, user.password_hash):
-        # Record audit log for failed login attempt
+        # Record audit log for failed login attempt (never logging password content!)
         audit_log = AuditLog(
             action="USER_LOGIN_FAILED",
             target_type="user",
             target_id=username,
             result=AuditResult.FAILURE,
+            request_id=request_id,
             source_ip=request.client.host if request.client else None,
             audit_metadata={"reason": "Invalid credentials"}
         )
@@ -92,6 +87,7 @@ def login(
         target_type="user",
         target_id=str(user.id),
         result=AuditResult.SUCCESS,
+        request_id=request_id,
         source_ip=request.client.host if request.client else None,
         audit_metadata={"username": user.username, "role": user.role.value}
     )
@@ -117,18 +113,21 @@ def read_current_user(
 
 @router.post("/logout")
 def logout(
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> Any:
-    """End session / logout current user."""
+    """End session / logout current user (stateless JWT; client discards token)."""
+    request_id = getattr(request.state, "request_id", None)
     audit_log = AuditLog(
         actor_id=current_user.id,
         action="USER_LOGOUT",
         target_type="user",
         target_id=str(current_user.id),
         result=AuditResult.SUCCESS,
+        request_id=request_id,
         audit_metadata={"username": current_user.username}
     )
     db.add(audit_log)
     db.commit()
-    return {"message": "Successfully logged out"}
+    return {"message": "Successfully logged out. Note: Stateless JWT tokens are discarded client-side and remain valid until expiration."}

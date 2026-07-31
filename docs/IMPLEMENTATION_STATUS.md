@@ -74,14 +74,14 @@ A comprehensive engineering audit of the workspace (`e:\neonprojects`) was perfo
 
 ---
 
-### M02: Authentication / RBAC
-- **Requirement**: `CWS-BE-001 Sec 6, 26`, `CWS-AF-001 Flow AF-01`, `CWS-TRD-001 Sec 19`. JWT authentication with bcrypt password hashing. Server-side RBAC enforcing roles (`ADMIN`, `ANALYST`, `VIEWER`).
-- **Endpoints Implemented**: `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout`.
-- **Current Implementation**: Direct bcrypt password hashing & verification in `backend/app/core/security.py`, JWT access token issuance/decoding, server-side RBAC dependency guards (`RequireRole`), rate limiting via `slowapi`, and login audit logging.
-- **Missing Work**: None for M02 authentication module.
+### M02: Authentication / RBAC (M02.1 Certified)
+- **Requirement**: `CWS-BE-001 Sec 6, 26`, `CWS-AF-001 Flow AF-01`, `CWS-TRD-001 Sec 19`. JWT authentication with bcrypt password hashing. Server-side RBAC enforcing roles (`ADMIN`, `ANALYST`, `VIEWER`). User administration (`/users`).
+- **Endpoints Implemented**: `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout`, `POST /api/v1/users`, `GET /api/v1/users`, `GET /api/v1/users/{id}`, `PATCH /api/v1/users/{id}`.
+- **Current Implementation**: Direct bcrypt password hashing with explicit 12-char min / 72-byte max input bounds, JWT access token issuance/decoding, DB-backed authoritative user status checks, server-side RBAC guards (`RequireRole`), User Admin endpoints, `RequestIDMiddleware` (`X-Request-ID`), admin bootstrap CLI (`backend/app/bootstrap_admin.py`), rate limiting via `slowapi`, and login/user audit logging.
+- **Missing Work**: None for M02 authentication & identity module.
 - **Dependencies**: M00, M01.
-- **Security Considerations**: Generic error messages on login failure ("Invalid username or password"), rate limiting (10/min), JWT expiration, password_hash excluded from Pydantic `UserRead` schemas, login event audit logging (`USER_LOGIN_SUCCESS`, `USER_LOGIN_FAILED`).
-- **Required Tests**: `py -3.12 -m pytest tests/test_auth.py` (10/10 passed).
+- **Security Considerations**: Generic error messages on login failure ("Invalid username or password"), rate limiting (10/min), JWT expiration, password_hash excluded from Pydantic `UserRead` schemas, login & user lifecycle audit logging (`USER_CREATED`, `USER_ROLE_CHANGED`, `USER_ACTIVATED`, `USER_DEACTIVATED`).
+- **Required Tests**: `py -3.12 -m pytest -v` (31/31 passed across auth, users, database, health).
 - **Status**: `VERIFIED`
 
 ---

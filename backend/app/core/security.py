@@ -5,25 +5,46 @@ from jose import jwt, JWTError
 from backend.app.core.config import settings
 
 ALGORITHM = "HS256"
+MIN_PASSWORD_LENGTH = 12
+MAX_PASSWORD_BYTES = 72
+
+def validate_password_strength(password: str) -> None:
+    """Validate password input bounds without logging sensitive content.
+    
+    Rules:
+    - Must not be empty or whitespace-only
+    - Must be at least 12 characters long
+    - Must not exceed 72 bytes in UTF-8 representation (bcrypt limit)
+    """
+    if not password or not password.strip():
+        raise ValueError("Password cannot be empty or whitespace-only")
+    
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise ValueError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters long")
+    
+    password_bytes = password.encode("utf-8")
+    if len(password_bytes) > MAX_PASSWORD_BYTES:
+        raise ValueError(f"Password exceeds maximum allowable size of {MAX_PASSWORD_BYTES} bytes")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against its bcrypt hash."""
     if not plain_password or not hashed_password:
         return False
     try:
-        # Truncate to 72 bytes as per bcrypt specification
-        password_bytes = plain_password.encode('utf-8')[:72]
-        hash_bytes = hashed_password.encode('utf-8')
+        password_bytes = plain_password.encode("utf-8")
+        if len(password_bytes) > MAX_PASSWORD_BYTES:
+            return False
+        hash_bytes = hashed_password.encode("utf-8")
         return bcrypt.checkpw(password_bytes, hash_bytes)
     except Exception:
         return False
 
 def get_password_hash(password: str) -> str:
-    """Generate a bcrypt hash from a plain password string."""
-    # Truncate to 72 bytes as per bcrypt specification
-    password_bytes = password.encode('utf-8')[:72]
+    """Generate a bcrypt hash from a plain password string after validating bounds."""
+    validate_password_strength(password)
+    password_bytes = password.encode("utf-8")
     salt = bcrypt.gensalt()
-    return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+    return bcrypt.hashpw(password_bytes, salt).decode("utf-8")
 
 def create_access_token(
     subject: Union[str, Any], role: str, expires_delta: Optional[timedelta] = None
