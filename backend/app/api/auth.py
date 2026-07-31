@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import settings
+from backend.app.core.rate_limit import limiter
 from backend.app.core.security import verify_password, create_access_token, validate_password_strength
 from backend.app.db.session import get_db
 from backend.app.models.user import User
@@ -26,6 +27,7 @@ class LoginRequest(BaseModel):
     password: str
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit(lambda: settings.RATE_LIMIT_LOGIN)
 def login(
     request: Request,
     login_data: Optional[LoginRequest] = None,

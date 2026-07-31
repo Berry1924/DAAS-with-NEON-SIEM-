@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import settings
+from backend.app.core.rate_limit import limiter
 from backend.app.db.session import get_db
 from backend.app.models.user import User
 from backend.app.models.enums import UserRole, EventOutcome, Severity
@@ -38,6 +39,7 @@ def check_json_content_type(request: Request) -> None:
 
 # INGESTION ENDPOINTS (M03)
 @router.post("", response_model=SingleIngestResponse, status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit(lambda: settings.RATE_LIMIT_INGEST)
 def ingest_single_event(
     request: Request,
     telemetry: RawTelemetryRequest,
@@ -55,6 +57,7 @@ def ingest_single_event(
     )
 
 @router.post("/batch", response_model=BatchIngestResponse, status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit(lambda: settings.RATE_LIMIT_INGEST)
 def ingest_batch_events(
     request: Request,
     batch: List[RawTelemetryRequest],
