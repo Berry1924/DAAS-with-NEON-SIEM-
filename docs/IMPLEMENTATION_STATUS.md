@@ -29,7 +29,7 @@ A comprehensive engineering audit of the workspace (`e:\neonprojects`) was perfo
 |---|---|---|---|---|
 | **M00** | Foundation | `VERIFIED` | P0 | None |
 | **M01** | Database | `VERIFIED` | P0 | M00 |
-| **M02** | Authentication / RBAC | `NOT_STARTED` | P0 | M00, M01 |
+| **M02** | Authentication / RBAC | `VERIFIED` | P0 | M00, M01 |
 | **M03** | Ingestion | `NOT_STARTED` | P0 | M00, M01, M02 |
 | **M04** | Parsing & Normalization | `NOT_STARTED` | P0 | M03 |
 | **M05** | Event Storage | `NOT_STARTED` | P0 | M01, M04 |
@@ -75,14 +75,14 @@ A comprehensive engineering audit of the workspace (`e:\neonprojects`) was perfo
 ---
 
 ### M02: Authentication / RBAC
-- **Requirement**: `CWS-BE-001 Sec 6, 26`, `CWS-AF-001 Flow AF-01`, `CWS-TRD-001 Sec 19`. JWT/Session authentication with `bcrypt`/`argon2` password hashing. Server-side RBAC enforcing roles (`ADMIN`, `ANALYST`, `VIEWER`).
-- **Endpoints**: `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`, `GET /api/v1/me`.
-- **Current Implementation**: Auth flows specified in `CWS-AF-001` and `CWS-BE-001`.
-- **Missing Work**: Auth service (`backend/app/core/security.py`), user router (`backend/app/api/auth.py`), RBAC dependency injection guards (`RequireRole`), password hashing helpers.
+- **Requirement**: `CWS-BE-001 Sec 6, 26`, `CWS-AF-001 Flow AF-01`, `CWS-TRD-001 Sec 19`. JWT authentication with bcrypt password hashing. Server-side RBAC enforcing roles (`ADMIN`, `ANALYST`, `VIEWER`).
+- **Endpoints Implemented**: `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout`.
+- **Current Implementation**: Direct bcrypt password hashing & verification in `backend/app/core/security.py`, JWT access token issuance/decoding, server-side RBAC dependency guards (`RequireRole`), rate limiting via `slowapi`, and login audit logging.
+- **Missing Work**: None for M02 authentication module.
 - **Dependencies**: M00, M01.
-- **Security Considerations**: Generic error messages on login failure, rate limiting (`slowapi`), token expiry, exclusion of `password_hash` from Pydantic schemas/responses.
-- **Required Tests**: `BE-AC-02` (no hash leakage), `BE-AC-03` (RBAC authorization enforcement), login rate limit test.
-- **Status**: `NOT_STARTED`
+- **Security Considerations**: Generic error messages on login failure ("Invalid username or password"), rate limiting (10/min), JWT expiration, password_hash excluded from Pydantic `UserRead` schemas, login event audit logging (`USER_LOGIN_SUCCESS`, `USER_LOGIN_FAILED`).
+- **Required Tests**: `py -3.12 -m pytest tests/test_auth.py` (10/10 passed).
+- **Status**: `VERIFIED`
 
 ---
 

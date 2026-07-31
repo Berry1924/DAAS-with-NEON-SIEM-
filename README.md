@@ -120,7 +120,7 @@ Cyberwolf SIEM is engineered as a **Secure Modular Monolith**:
 |---|---|---|---|---|
 | **M00** | Foundation & Runtime | `VERIFIED` | P0 | Directory layout, Pydantic settings, health APIs (`3/3 tests passed`). |
 | **M01** | Database & Persistence | `VERIFIED` | P0 | 11 PostgreSQL tables, Alembic migrations, FK delete policy (`10/10 tests passed`). |
-| **M02** | Authentication & RBAC | `NOT_STARTED` | P0 | JWT auth, bcrypt hashing, `ADMIN`, `ANALYST`, `VIEWER` roles. |
+| **M02** | Authentication & RBAC | `VERIFIED` | P0 | JWT auth, bcrypt hashing, `ADMIN`, `ANALYST`, `VIEWER` roles (`10/10 tests passed`). |
 | **M03** | Telemetry Ingestion | `NOT_STARTED` | P0 | Single & batch event REST ingestion with payload limits. |
 | **M04** | Parsing & Normalization | `NOT_STARTED` | P0 | Parser registry & canonical normalization engine. |
 | **M05** | Event Storage & Explorer | `NOT_STARTED` | P0 | Event query filters & paginated search repository. |
@@ -214,12 +214,12 @@ docker compose up --build
 Run the consolidated `pytest` test suite:
 
 ```bash
-py -3.12 -m pytest tests/test_database.py tests/test_health.py -v
+py -3.12 -m pytest tests/test_auth.py tests/test_database.py tests/test_health.py -v
 ```
 
 Expected Output:
 ```text
-============================= 10 passed in 0.97s ==============================
+============================= 20 passed in 12.74s =============================
 ```
 
 For complete test case documentation, catalog, and security invariants, see [TEST_SUITE_SPECIFICATION.md](file:///e:/neonprojects/docs/TEST_SUITE_SPECIFICATION.md).
