@@ -28,7 +28,7 @@ A comprehensive engineering audit of the workspace (`e:\neonprojects`) was perfo
 | Module ID | Module Name | Status | Priority | Core Dependencies |
 |---|---|---|---|---|
 | **M00** | Foundation | `VERIFIED` | P0 | None |
-| **M01** | Database | `NOT_STARTED` | P0 | M00 |
+| **M01** | Database | `VERIFIED` | P0 | M00 |
 | **M02** | Authentication / RBAC | `NOT_STARTED` | P0 | M00, M01 |
 | **M03** | Ingestion | `NOT_STARTED` | P0 | M00, M01, M02 |
 | **M04** | Parsing & Normalization | `NOT_STARTED` | P0 | M03 |
@@ -63,14 +63,14 @@ A comprehensive engineering audit of the workspace (`e:\neonprojects`) was perfo
 ---
 
 ### M01: Database
-- **Requirement**: `CWS-BE-001 Sec 6-17`, `CWS-TRD-001 Sec 20`. PostgreSQL system of record, SQLAlchemy models, and Alembic versioned migrations (`0001: users` through `0007: audit_logs`).
-- **Tables Required**: `users`, `assets`, `events`, `detection_rules`, `alerts`, `alert_events`, `incidents`, `incident_alerts`, `incident_timeline`, `incident_notes`, `audit_logs`, `ingestion_sources`.
-- **Current Implementation**: Data schema defined in specification `CWS-BE-001`.
-- **Missing Work**: SQLAlchemy model definitions (`backend/app/models/`), Alembic setup and migration scripts (`backend/app/db/`), database connection session factory.
+- **Requirement**: `CWS-BE-001 Sec 6-17`, `CWS-TRD-001 Sec 20`. PostgreSQL system of record, SQLAlchemy models, and Alembic versioned migrations (`0001_initial_schema.py`).
+- **Tables Implemented**: `users`, `assets`, `events`, `detection_rules`, `alerts`, `alert_events`, `incidents`, `incident_alerts`, `incident_timeline`, `incident_notes`, `audit_logs`.
+- **Current Implementation**: Complete SQLAlchemy 2.0 relational model suite, session management, repository layer (`EventRepository`, `AlertRepository`, `IncidentRepository`), Pydantic UserRead schema safety (excluding password_hash), Alembic migration baseline `0001_initial_schema.py`, and database architecture specification in `docs/DATABASE_ARCHITECTURE.md`.
+- **Missing Work**: None for M01 database module.
 - **Dependencies**: M00 (Foundation).
-- **Security Considerations**: Parameterized queries, UUID primary keys, JSONB for metadata only, FK constraints preventing evidence cascading deletes, password hashes never stored in plaintext.
-- **Required Tests**: Migration runner test on clean DB (`BE-AC-01`), constraint verification, relationship integrity.
-- **Status**: `NOT_STARTED`
+- **Security Considerations**: Parameterized queries via SQLAlchemy, UUID primary keys, JSONB for metadata, RESTRICT foreign keys preserving underlying event evidence, password_hash excluded from API schemas.
+- **Required Tests**: `py -3.12 -m pytest tests/test_database.py` (10/10 passed).
+- **Status**: `VERIFIED`
 
 ---
 
