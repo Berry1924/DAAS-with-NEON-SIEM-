@@ -9,10 +9,10 @@
 [![Frontend](https://img.shields.io/badge/Frontend-React_18_%7C_TypeScript_%7C_Vite-61DAFB.svg)](file:///e:/neonprojects/frontend)
 [![Status](https://img.shields.io/badge/Status-M01_Database_Verified-success.svg)](file:///e:/neonprojects/docs/IMPLEMENTATION_STATUS.md)
 
-> Verification status (31 July 2026): M00–M05 source, migrations, and focused
-> backend tests have been inspected. Docker/PostgreSQL verification requires a
-> reachable Docker engine; see `docs/IMPLEMENTATION_STATUS.md` for the precise
-> certification scope. Do not treat this document as proof of a live deployment.
+> Verification status (31 July 2026): M00–M05 are a working local prototype.
+> The Windows Docker stack, Alembic migration, PostgreSQL persistence, real
+> HTTP authentication/ingestion/explorer flow, frontend proxy, and 76 backend
+> tests were verified. M03 idempotency remains process-local technical debt.
 
 ---
 
@@ -123,12 +123,12 @@ Cyberwolf SIEM is engineered as a **Secure Modular Monolith**:
 
 | Module ID | Module Name | Status | Priority | Deliverable / Verification |
 |---|---|---|---|---|
-| **M00** | Foundation & Runtime | `STATIC_VERIFIED` | P0 | Directory layout, production-safe settings validation, and health routes are present; live server verification is environment-blocked. |
-| **M01** | Database & Persistence | `STATIC_VERIFIED` | P0 | 11-table model and Alembic migration inspected; live PostgreSQL remains environment-blocked. |
-| **M02** | Authentication & RBAC | `STATIC_VERIFIED` | P0 | JWT, bcrypt bounds, user administration, and server-side RBAC are covered by the repository suite; HTTP execution is environment-blocked. |
-| **M03** | Telemetry Ingestion | `VERIFIED_WITH_DEBT` | P0 | Parsing/persistence tests pass; process-local idempotency remains technical debt and HTTP runtime is environment-blocked. |
+| **M00** | Foundation & Runtime | `VERIFIED` | P0 | Docker runtime, health routes, CORS, and request IDs verified over HTTP. |
+| **M01** | Database & Persistence | `VERIFIED` | P0 | Alembic head applied to PostgreSQL; 11 domain tables and foreign keys inspected. |
+| **M02** | Authentication & RBAC | `VERIFIED` | P0 | Live login/JWT/RBAC/inactive-user behavior and login HTTP 429 limit verified. |
+| **M03** | Telemetry Ingestion | `VERIFIED_WITH_DEBT` | P0 | Live single/batch ingestion, authorization, and persistence verified; idempotency remains process-local. |
 | **M04** | Parsing & Normalization | `VERIFIED` | P0 | Linux auth/JSON parsers, UTC normalizer, Event ORM, recursive metadata redaction. |
-| **M05** | Event Storage & Explorer | `STATIC_VERIFIED` | P0 | Bounded query source and integration coverage are present; HTTP runtime is environment-blocked. |
+| **M05** | Event Storage & Explorer | `VERIFIED` | P0 | Live list/detail, filters, pagination, sorting, and evidence retrieval verified. |
 | **M06** | Detection Engine | `NOT_STARTED` | P0 | Declarative rule evaluator & threshold window state. |
 | **M07** | Alert Management | `NOT_STARTED` | P0 | Alert lifecycle management & `alert_events` linking. |
 | **M08** | Correlation Engine | `NOT_STARTED` | P0 | Entity/time correlation grouping multi-alert attacks. |
@@ -222,8 +222,7 @@ Run the consolidated `pytest` test suite:
 py -3.12 -m pytest -v
 ```
 
-The suite currently collects 76 tests. Run it in a native environment with a
-working FastAPI test transport; do not infer a passing result from this count.
+The current suite reports `76 passed` on the Windows host.
 
 For complete test case documentation, catalog, and security invariants, see [TEST_SUITE_SPECIFICATION.md](file:///e:/neonprojects/docs/TEST_SUITE_SPECIFICATION.md).
 
