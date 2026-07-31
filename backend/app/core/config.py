@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     RATE_LIMIT_LOGIN: str = "10/minute"
     RATE_LIMIT_INGEST: str = "500/minute"
     MAX_BATCH_SIZE: int = 100
+    MAX_REQUEST_BODY_BYTES: int = 1048576  # 1 MiB payload limit
+    SUPPORTED_SOURCE_TYPES: List[str] = ["linux_auth", "json"]
     DEFAULT_PAGE_SIZE: int = 50
     MAX_PAGE_SIZE: int = 100
 

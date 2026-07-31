@@ -30,7 +30,7 @@ A comprehensive engineering audit of the workspace (`e:\neonprojects`) was perfo
 | **M00** | Foundation | `VERIFIED` | P0 | None |
 | **M01** | Database | `VERIFIED` | P0 | M00 |
 | **M02** | Authentication / RBAC | `VERIFIED` | P0 | M00, M01 |
-| **M03** | Ingestion | `NOT_STARTED` | P0 | M00, M01, M02 |
+| **M03** | Ingestion | `VERIFIED` | P0 | M00, M01, M02 |
 | **M04** | Parsing & Normalization | `NOT_STARTED` | P0 | M03 |
 | **M05** | Event Storage | `NOT_STARTED` | P0 | M01, M04 |
 | **M06** | Detection | `NOT_STARTED` | P0 | M04, M05 |
@@ -86,15 +86,15 @@ A comprehensive engineering audit of the workspace (`e:\neonprojects`) was perfo
 
 ---
 
-### M03: Ingestion
-- **Requirement**: `CWS-TRD-001 Sec 9`, `CWS-AF-001 Flow AF-03`, `CWS-BE-001 Sec 19`. Telemetry ingestion REST endpoints supporting single event and bounded batch inputs.
-- **Endpoints**: `POST /api/v1/events`, `POST /api/v1/events/batch`.
-- **Current Implementation**: Ingestion contract defined.
-- **Missing Work**: Ingestion API handlers (`backend/app/api/events.py`), payload size validation, batch size bounding, rate limiter integration.
+### M03: Ingestion (M03 Certified)
+- **Requirement**: `CWS-PRD-001`, `CWS-TRD-001 Sec 5`, `CWS-AF-001 Flow AF-02`, `CWS-BE-001 Sec 11`, `CWS-IP-001`. Single (`POST /api/v1/events`) and batch (`POST /api/v1/events/batch`) raw telemetry intake boundary.
+- **Endpoints Implemented**: `POST /api/v1/events`, `POST /api/v1/events/batch`.
+- **Current Implementation**: Bounded `RawTelemetryRequest` strict schema validation (`extra = "forbid"`), `IngestionService` with idempotency set (`source_type` + `source_event_id`), `IngestionEnvelope` processing boundary, `RequestSizeLimitMiddleware` enforcing 1 MiB payload limit (`HTTP 413`) and `application/json` Content-Type (`HTTP 415`), batch limit enforcement (`1 <= batch <= 100`), IP address validation (`IPv4`/`IPv6`), RBAC authorization (`ADMIN` & `ANALYST` allowed; `VIEWER` denied `403`), and operational audit logging (`INGEST_ACCEPTED`).
+- **Missing Work**: None for M03 Telemetry Ingestion module.
 - **Dependencies**: M00, M01, M02.
-- **Security Considerations**: Ingestion rate limits, max payload size enforcement, raw input sanitization.
-- **Required Tests**: Ingestion payload limit test, invalid schema rejection test, batch bounds test.
-- **Status**: `NOT_STARTED`
+- **Security Considerations**: Request body size limit (1 MiB), strict Pydantic schemas forbidding client overrides of internal attributes, raw telemetry inertness (no dynamic code execution), rate protection (`500/min`), Request ID propagation (`X-Request-ID`), no raw payload or secret storage in audit logs.
+- **Required Tests**: `py -3.12 -m pytest -v` (49/49 passed across auth, users, database, health, ingestion).
+- **Status**: `VERIFIED`
 
 ---
 

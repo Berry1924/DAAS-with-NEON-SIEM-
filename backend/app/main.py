@@ -1,32 +1,15 @@
-import uuid
-import re
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from backend.app.core.config import settings
+from backend.app.core.middleware import RequestIDMiddleware, RequestSizeLimitMiddleware
 from backend.app.api.health import router as health_router
 from backend.app.api.auth import router as auth_router
 from backend.app.api.users import router as users_router
-
-REQUEST_ID_REGEX = re.compile(r"^[a-zA-Z0-9_\-]{1,128}$")
-
-class RequestIDMiddleware(BaseHTTPMiddleware):
-    """Middleware enforcing bounded Request IDs on all requests and response headers."""
-    async def dispatch(self, request: Request, call_next):
-        incoming_id = request.headers.get("X-Request-ID")
-        if incoming_id and REQUEST_ID_REGEX.match(incoming_id):
-            request_id = incoming_id
-        else:
-            request_id = str(uuid.uuid4())
-        
-        request.state.request_id = request_id
-        response = await call_next(request)
-        response.headers["X-Request-ID"] = request_id
-        return response
+from backend.app.api.events import router as events_router
 
 # Rate Limiter setup (SEC-06)
 limiter = Limiter(key_func=get_remote_address)
@@ -42,7 +25,8 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Middlewares
+# Middlewares (Order: Size limit first, then Request ID, then CORS)
+app.add_middleware(RequestSizeLimitMiddleware)
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -57,6 +41,7 @@ app.include_router(health_router)
 app.include_router(health_router, prefix=settings.API_V1_STR)
 app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(users_router, prefix=settings.API_V1_STR)
+app.include_router(events_router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 async def root():
