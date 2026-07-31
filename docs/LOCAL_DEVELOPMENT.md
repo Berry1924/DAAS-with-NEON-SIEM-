@@ -53,3 +53,9 @@ The ingestion idempotency set is process-local. It prevents duplicates only
 within one backend process and resets on restart; it is not durable or
 distributed idempotency. PostgreSQL migration and Docker golden-path checks
 require a reachable Docker engine.
+
+The frontend currently uses the newest Vite 5 release compatible with Node 18.
+`npm audit` still reports Vite/esbuild development-server advisories; npm
+identifies Vite 8.2.0 as the remediation, which requires Node 20.19+ or
+22.12+. Upgrade Node before moving to that release; do not use `npm audit fix
+--force` on Node 18.
