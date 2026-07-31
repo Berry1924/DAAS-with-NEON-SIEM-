@@ -6,15 +6,13 @@
 **Scope**: Cyberwolf SIEM Hackathon MVP  
 **Reference Specifications**: `CWS-PRD-001`, `CWS-TRD-001`, `CWS-AF-001`, `CWS-UX-001`, `CWS-BE-001`, `CWS-IP-001`
 
-> **Verification status — 31 July 2026:** M00–M05 source, migration structure,
-> and focused backend behavior have been re-inspected. The suite collects 76
-> tests. In the current WSL verification environment, FastAPI HTTP test
-> transport and loopback-server execution are unavailable, so HTTP-only tests
-> and live health checks are `ENVIRONMENT_BLOCKED`, not passed. Docker CLI
-> integration is also unavailable, therefore live PostgreSQL migration and
-> container golden-path verification are `ENVIRONMENT_BLOCKED`. The frontend
-> production build passes from the isolated native-Linux worktree. Historical
-> claims of a fully passing suite are superseded by this statement.
+> **Verification status — 31 July 2026:** The Windows-host Docker runtime was
+> exercised with PostgreSQL, backend, and frontend containers. Alembic applied
+> `0001_initial_schema`; the database schema, live authentication/RBAC, rate
+> limiting, ingestion, normalization/redaction, persistence across a backend
+> restart, M05 list/detail retrieval, and browser-facing Vite proxy were
+> verified. The backend suite reports **76 passed**. M03 idempotency remains
+> process-local technical debt; it is not durable across restart or replicas.
 
 ---
 
