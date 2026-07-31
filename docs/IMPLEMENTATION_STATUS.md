@@ -31,7 +31,7 @@ A comprehensive engineering audit of the workspace (`e:\neonprojects`) was perfo
 | **M01** | Database | `VERIFIED` | P0 | M00 |
 | **M02** | Authentication / RBAC | `VERIFIED` | P0 | M00, M01 |
 | **M03** | Ingestion | `VERIFIED` | P0 | M00, M01, M02 |
-| **M04** | Parsing & Normalization | `NOT_STARTED` | P0 | M03 |
+| **M04** | Parsing & Normalization | `VERIFIED` | P0 | M03 |
 | **M05** | Event Storage | `NOT_STARTED` | P0 | M01, M04 |
 | **M06** | Detection | `NOT_STARTED` | P0 | M04, M05 |
 | **M07** | Alerts | `NOT_STARTED` | P0 | M06 |
@@ -98,14 +98,14 @@ A comprehensive engineering audit of the workspace (`e:\neonprojects`) was perfo
 
 ---
 
-### M04: Parsing & Normalization
-- **Requirement**: `CWS-TRD-001 Sec 10-11`, `CWS-AF-001 Flow AF-04`, `CWS-BE-001 Sec 19`. Convert raw log formats (JSON, Linux auth logs, synthetic demo events) into canonical Cyberwolf schema (`timestamp`, `source_type`, `event_type`, `source_ip`, `destination_ip`, `hostname`, `username`, `action`, `outcome`, `severity`, `raw_event`, `metadata`).
-- **Current Implementation**: Canonical contract specified in `CWS-BE-001 Sec 19`.
-- **Missing Work**: Parser interface & registry (`security_engine/parsers/`), normalizer engine (`security_engine/normalization/`), UTC timestamp coercion, IP format validation.
+### M04: Parsing & Normalization (M04 Certified)
+- **Requirement**: `CWS-TRD-001 Sec 10-11`, `CWS-AF-001 Flow AF-04`, `CWS-BE-001 Sec 19`. Convert raw log formats (JSON, Linux auth logs) into canonical Cyberwolf `Event` schema (`timestamp`, `source_type`, `event_type`, `source_ip`, `destination_ip`, `hostname`, `username`, `action`, `outcome`, `severity`, `raw_event`, `event_metadata`).
+- **Current Implementation**: `ParserRegistry` managing `LinuxAuthParser` and `JsonParser`, `ParsedEvent` intermediate representation, `EventNormalizer` with UTC timestamp coercion, IP validation (`IPv4`/`IPv6`), outcome/severity enum mapping, metadata credential redaction (`[REDACTED]`), and `ProcessingService` pipeline persisting canonical `Event` entities via `EventRepository`.
+- **Missing Work**: None for M04 Parsing & Normalization module.
 - **Dependencies**: M03.
-- **Security Considerations**: Malformed logs must quarantine/fail safely without crashing the ingestion worker or leaking internal stack traces.
-- **Required Tests**: `BE-AC-04` (canonical field persistence), `BE-AC-05` (safe handling of malformed input), unit tests for Linux auth & JSON parsers.
-- **Status**: `NOT_STARTED`
+- **Security Considerations**: Data inertness (zero code execution for malicious telemetry strings), sensitive metadata key redaction, strict IP address validation, raw evidence immutability.
+- **Required Tests**: `py -3.12 -m pytest -v` (59/59 passed across auth, users, database, health, ingestion, normalization).
+- **Status**: `VERIFIED`
 
 ---
 

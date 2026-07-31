@@ -11,14 +11,15 @@ from backend.app.schemas.telemetry import (
 from backend.app.models.audit_log import AuditLog
 from backend.app.models.enums import AuditResult
 from backend.app.models.user import User
+from security_engine.pipeline import processing_service
 
 class IngestionService:
-    """Service orchestrating telemetry ingestion, idempotency check, and envelope creation."""
+    """Service orchestrating telemetry ingestion, idempotency check, envelope creation, and M04 pipeline execution."""
 
     def __init__(self):
         # In-memory idempotency set tracking seen (source_type, source_event_id)
         self._seen_event_keys: Set[str] = set()
-        # In-memory queue storing accepted envelopes for M04 normalization boundary
+        # In-memory queue storing accepted envelopes
         self._envelope_buffer: List[IngestionEnvelope] = []
 
     def ingest_single(
@@ -28,7 +29,7 @@ class IngestionService:
         user: User,
         db: Session
     ) -> SingleIngestResponse:
-        """Process single raw telemetry request."""
+        """Process single raw telemetry request through intake, parsing, normalization, and persistence."""
         is_dup = False
         if telemetry.source_event_id:
             key = f"{telemetry.source_type}:{telemetry.source_event_id}"
@@ -54,6 +55,10 @@ class IngestionService:
 
         if not is_dup:
             self._envelope_buffer.append(envelope)
+            # Execute M04 Parsing -> Normalization -> Persistence pipeline
+            proc_result = processing_service.process(envelope, db)
+        else:
+            proc_result = None
 
         # Operational Audit Log (safe metadata only, NO raw payload or tokens)
         audit_log = AuditLog(
@@ -67,7 +72,8 @@ class IngestionService:
                 "source_type": telemetry.source_type,
                 "record_count": 1,
                 "is_duplicate": is_dup,
-                "source_event_id": telemetry.source_event_id
+                "source_event_id": telemetry.source_event_id,
+                "pipeline_status": proc_result.status if proc_result else "DUPLICATE"
             }
         )
         db.add(audit_log)
@@ -88,7 +94,7 @@ class IngestionService:
         user: User,
         db: Session
     ) -> BatchIngestResponse:
-        """Process atomic batch raw telemetry request."""
+        """Process atomic batch raw telemetry request through intake, parsing, normalization, and persistence."""
         accepted_count = 0
         duplicates_count = 0
 
@@ -119,6 +125,7 @@ class IngestionService:
 
             if not is_dup:
                 self._envelope_buffer.append(envelope)
+                processing_service.process(envelope, db)
             accepted_count += 1
 
         # Operational Audit Log for batch
