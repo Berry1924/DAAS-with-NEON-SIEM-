@@ -6,6 +6,14 @@
 **Scope**: Cyberwolf SIEM Hackathon MVP  
 **Reference Specifications**: `CWS-PRD-001`, `CWS-TRD-001`, `CWS-AF-001`, `CWS-UX-001`, `CWS-BE-001`, `CWS-IP-001`
 
+> **Verification status — 31 July 2026:** M00–M05 source and automated
+> behavior are verified by the remediation suite (74 passing tests). This does
+> **not** certify a live PostgreSQL/Docker deployment: Docker was unavailable
+> in the verification environment. The frontend build passes from a native
+> Linux temporary copy; installation directly on the Windows-mounted workspace
+> is environment-blocked by npm/esbuild extraction. Historical test counts
+> below are superseded by this statement.
+
 ---
 
 ## 1. Executive Summary & Audit Overview

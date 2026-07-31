@@ -127,6 +127,23 @@ def test_normalization_sensitive_metadata_redaction():
     assert canonical.event_metadata["access_token"] == "[REDACTED]"
     assert canonical.event_metadata["safe_info"] == "normal_log_data"
 
+def test_metadata_redaction_recurses_through_nested_lists_and_dicts():
+    metadata = {
+        "items": [
+            {"token": "sensitive"},
+            {"nested": [{"Authorization": "sensitive"}, {"safe": "value"}]},
+        ],
+        "COOKIE": "sensitive",
+    }
+
+    assert sanitize_metadata(metadata) == {
+        "items": [
+            {"token": "[REDACTED]"},
+            {"nested": [{"Authorization": "[REDACTED]"}, {"safe": "value"}]},
+        ],
+        "COOKIE": "[REDACTED]",
+    }
+
 # 4. Security Inert Strings Test
 def test_normalization_inert_attack_payloads():
     payload = {

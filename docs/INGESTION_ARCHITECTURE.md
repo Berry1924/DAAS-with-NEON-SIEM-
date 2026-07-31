@@ -103,6 +103,9 @@ Initial supported telemetry source types in `settings.SUPPORTED_SOURCE_TYPES`:
 3. **Strict Pydantic Contracts**: `extra = "forbid"` prevents clients from injecting internal/reserved model attributes (e.g. `id`, `created_at`, `risk_score`, `incident_id`).
 4. **Raw Telemetry Inertness**: Attacks inside telemetry payloads (e.g., `<script>`, `' OR 1=1 --`, `$(whoami)`) are treated strictly as inert data strings without dynamic evaluation (`eval`/`exec`).
 5. **Rate Limiting**: `slowapi` rate limiter on ingestion routes (`500/minute`). Exceeding throughput returns `HTTP 429 Too Many Requests`.
+6. **Idempotency Scope (TECHNICAL_DEBT)**: duplicate detection uses an in-memory
+   `(source_type, source_event_id)` set. It prevents duplicates only within one
+   backend process and resets on restart; it is not durable idempotency.
 
 ---
 

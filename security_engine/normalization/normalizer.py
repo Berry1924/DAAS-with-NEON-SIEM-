@@ -14,17 +14,21 @@ SENSITIVE_KEYS = {
     "refresh_token", "authorization", "cookie", "secret", "api_key"
 }
 
-def sanitize_metadata(metadata: Dict[str, Any]) -> Dict[str, Any]:
-    """Defensively redact sensitive credential keys in normalized metadata."""
-    sanitized = {}
-    for key, value in metadata.items():
-        if key.lower() in SENSITIVE_KEYS:
-            sanitized[key] = "[REDACTED]"
-        elif isinstance(value, dict):
-            sanitized[key] = sanitize_metadata(value)
-        else:
-            sanitized[key] = value
-    return sanitized
+def sanitize_metadata(metadata: Any) -> Any:
+    """Recursively redact credential values from normalized metadata only.
+
+    Raw telemetry remains untouched in ``Event.raw_event`` for forensic
+    preservation. This function handles JSON-safe dictionaries and lists so
+    sensitive values cannot reappear through nested collection structures.
+    """
+    if isinstance(metadata, dict):
+        return {
+            key: "[REDACTED]" if str(key).lower() in SENSITIVE_KEYS else sanitize_metadata(value)
+            for key, value in metadata.items()
+        }
+    if isinstance(metadata, list):
+        return [sanitize_metadata(item) for item in metadata]
+    return metadata
 
 class EventNormalizer:
     """Canonical Event Normalizer engine."""

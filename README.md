@@ -9,6 +9,10 @@
 [![Frontend](https://img.shields.io/badge/Frontend-React_18_%7C_TypeScript_%7C_Vite-61DAFB.svg)](file:///e:/neonprojects/frontend)
 [![Status](https://img.shields.io/badge/Status-M01_Database_Verified-success.svg)](file:///e:/neonprojects/docs/IMPLEMENTATION_STATUS.md)
 
+> Verification status (31 July 2026): M00–M05 are verified by 74 automated
+> backend tests. Docker/PostgreSQL runtime verification remains blocked where
+> Docker is unavailable; see `docs/IMPLEMENTATION_STATUS.md` for scope.
+
 ---
 
 ## 1. Executive Summary & Mission
@@ -118,12 +122,12 @@ Cyberwolf SIEM is engineered as a **Secure Modular Monolith**:
 
 | Module ID | Module Name | Status | Priority | Deliverable / Verification |
 |---|---|---|---|---|
-| **M00** | Foundation & Runtime | `VERIFIED` | P0 | Directory layout, Pydantic settings, health APIs (`3/3 tests passed`). |
-| **M01** | Database & Persistence | `VERIFIED` | P0 | 11 PostgreSQL tables, Alembic migrations, FK delete policy (`10/10 tests passed`). |
-| **M02** | Authentication & RBAC | `VERIFIED` | P0 | JWT auth, bcrypt bounds, User Admin, `ADMIN`/`ANALYST`/`VIEWER` RBAC (`31/31 tests passed`). |
-| **M03** | Telemetry Ingestion | `VERIFIED` | P0 | Single & batch REST intake, 1 MiB body limit, idempotency (`49/49 tests passed`). |
-| **M04** | Parsing & Normalization | `VERIFIED` | P0 | Linux auth & JSON parsers, UTC normalizer, Event ORM (`59/59 tests passed`). |
-| **M05** | Event Storage & Explorer | `VERIFIED` | P0 | Bounded event search, filters, stats, read-only evidence (`70/70 tests passed`). |
+| **M00** | Foundation & Runtime | `VERIFIED` | P0 | Directory layout, Pydantic settings, health APIs; covered by the current 74-test suite. |
+| **M01** | Database & Persistence | `STATIC_VERIFIED` | P0 | 11-table model and Alembic migration tested with SQLite; live PostgreSQL remains environment-blocked. |
+| **M02** | Authentication & RBAC | `VERIFIED` | P0 | JWT auth, bcrypt bounds, user administration, and server-side RBAC. |
+| **M03** | Telemetry Ingestion | `VERIFIED_WITH_DEBT` | P0 | Single/batch intake, 1 MiB body limit, applied rate limits; idempotency remains process-local. |
+| **M04** | Parsing & Normalization | `VERIFIED` | P0 | Linux auth/JSON parsers, UTC normalizer, Event ORM, recursive metadata redaction. |
+| **M05** | Event Storage & Explorer | `VERIFIED` | P0 | Bounded event search, filters, stats, read-only evidence. |
 | **M06** | Detection Engine | `NOT_STARTED` | P0 | Declarative rule evaluator & threshold window state. |
 | **M07** | Alert Management | `NOT_STARTED` | P0 | Alert lifecycle management & `alert_events` linking. |
 | **M08** | Correlation Engine | `NOT_STARTED` | P0 | Entity/time correlation grouping multi-alert attacks. |
@@ -134,7 +138,7 @@ Cyberwolf SIEM is engineered as a **Secure Modular Monolith**:
 | **M13** | SOC Dashboard | `NOT_STARTED` | P0 | Real-time SOC dashboard metrics & incident queue UI. |
 | **M14** | Demo Generator | `NOT_STARTED` | P0 | Deterministic synthetic golden telemetry replayer. |
 | **M15** | Golden Path Integration | `NOT_STARTED` | P0 | End-to-end integration test verifying full pipeline. |
-| **M16** | Security Hardening | `NOT_STARTED` | P0 | Rate limits, CORS restrictions, input bounds, XSS escaping. |
+| **M16** | Security Hardening | `PARTIAL` | P0 | M00–M05 include rate limits, CORS restrictions, input bounds, and inert-data handling; later-module hardening remains pending. |
 | **M17** | Full Verification | `NOT_STARTED` | P0 | Consolidated automated test suite (`pytest`). |
 | **M18** | Hackathon Release | `NOT_STARTED` | P0 | Single-command Docker Compose production setup. |
 
@@ -219,7 +223,7 @@ py -3.12 -m pytest -v
 
 Expected Output:
 ```text
-============================= 70 passed in 52.31s =============================
+============================= 74 passed in 52.22s =============================
 ```
 
 For complete test case documentation, catalog, and security invariants, see [TEST_SUITE_SPECIFICATION.md](file:///e:/neonprojects/docs/TEST_SUITE_SPECIFICATION.md).
