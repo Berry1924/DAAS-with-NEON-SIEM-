@@ -214,13 +214,15 @@ docker compose up --build
 Run the consolidated `pytest` test suite:
 
 ```bash
-py -3.12 -m pytest tests/test_database.py tests/test_health.py
+py -3.12 -m pytest tests/test_database.py tests/test_health.py -v
 ```
 
 Expected Output:
 ```text
-============================= 10 passed in 0.94s ==============================
+============================= 10 passed in 0.97s ==============================
 ```
+
+For complete test case documentation, catalog, and security invariants, see [TEST_SUITE_SPECIFICATION.md](file:///e:/neonprojects/docs/TEST_SUITE_SPECIFICATION.md).
 
 ---
 
