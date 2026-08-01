@@ -1,5 +1,6 @@
 # Environment & Secrets
 .env
+collector/offsets.json
 .env.local
 .env.*
 !.env.example

@@ -1,0 +1,14 @@
+# Supply COLLECTOR_JWT_TOKEN through the environment; never commit a JWT here.
+api_url: http://localhost:8000
+jwt_token: ${COLLECTOR_JWT_TOKEN}
+collector_id: collector-demo
+batch_size: 25
+flush_interval_seconds: 5
+retry_count: 3
+heartbeat_interval_seconds: 60
+offset_path: collector/offsets.json
+watched_paths:
+  - path: /var/log/auth.log
+    source_type: linux_auth
+  - path: demo/sample_logs.json
+    source_type: json
