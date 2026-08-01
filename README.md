@@ -129,7 +129,7 @@ Cyberwolf SIEM is engineered as a **Secure Modular Monolith**:
 | **M03** | Telemetry Ingestion | `VERIFIED_WITH_DEBT` | P0 | Live single/batch ingestion, authorization, and persistence verified; idempotency remains process-local. |
 | **M04** | Parsing & Normalization | `VERIFIED` | P0 | Linux auth/JSON parsers, UTC normalizer, Event ORM, recursive metadata redaction. |
 | **M05** | Event Storage & Explorer | `VERIFIED` | P0 | Live list/detail, filters, pagination, sorting, and evidence retrieval verified. |
-| **M06** | Detection Engine | `NOT_STARTED` | P0 | Declarative rule evaluator & threshold window state. |
+| **M06** | Live Telemetry Collector | `VERIFIED_WITH_DEBT` | P1 | Tails appended Linux/JSON logs and sends authenticated M03 batches; process-local offsets/retries; see `collector/docs/README.md`. |
 | **M07** | Alert Management | `NOT_STARTED` | P0 | Alert lifecycle management & `alert_events` linking. |
 | **M08** | Correlation Engine | `NOT_STARTED` | P0 | Entity/time correlation grouping multi-alert attacks. |
 | **M09** | Risk Engine | `NOT_STARTED` | P0 | Deterministic 0-100 scoring & factor breakdown. |

@@ -41,7 +41,7 @@ A comprehensive engineering audit of the workspace (`e:\neonprojects`) was perfo
 | **M03** | Ingestion | `VERIFIED` | P0 | M00, M01, M02 |
 | **M04** | Parsing & Normalization | `VERIFIED` | P0 | M03 |
 | **M05** | Event Storage | `VERIFIED` | P0 | M01, M04 |
-| **M06** | Detection | `NOT_STARTED` | P0 | M04, M05 |
+| **M06** | Live telemetry collector | `VERIFIED_WITH_DEBT` | P1 | M03, M04 |
 | **M07** | Alerts | `NOT_STARTED` | P0 | M06 |
 | **M08** | Correlation | `NOT_STARTED` | P0 | M07 |
 | **M09** | Risk Engine | `NOT_STARTED` | P0 | M08 |
@@ -129,15 +129,12 @@ A comprehensive engineering audit of the workspace (`e:\neonprojects`) was perfo
 
 ---
 
-### M06: Detection Engine
-- **Requirement**: `CWS-TRD-001 Sec 12-13`, `CWS-AF-001 Flow AF-05`, `CWS-BE-001 Sec 9, 23`. Rule-based declarative detection engine with thresholding and sliding window state. No arbitrary executable Python/JS code allowed.
-- **Rules to Implement**: `CW-AUTH-001` (Repeated Auth Failures), `CW-AUTH-002` (Multiple Accounts Targeted), `CW-NET-001` (Port Scan), `CW-WEB-001` (Suspicious Web Request), `CW-PRIV-001` (Privilege Escalation), `CW-LOGIN-001` (Successful Login Post-Failures), `CW-IDS-001` (High-Severity IDS Alert).
-- **Current Implementation**: Rule schema defined in `CWS-BE-001 Sec 9`.
-- **Missing Work**: Declarative predicate evaluator (`security_engine/detection/evaluator.py`), windowed state manager (`security_engine/detection/state.py`), rule seeder (`rules/cw_rules.json`).
-- **Dependencies**: M04, M05.
-- **Security Considerations**: Rule condition evaluation strictly constrained to safe declarative operators (`eq`, `neq`, `in`, `contains`, `gt`, `lt`).
-- **Required Tests**: Rule predicate unit tests, threshold counter window expiry test, `CW-AUTH-001` positive/negative triggers.
-- **Status**: `NOT_STARTED`
+### M06: Live Telemetry Collector
+- **Current Implementation**: `collector/` tails only appended Linux authentication and newline-delimited JSON records, persists per-file offsets, batches memory-queued records, and authenticates to the existing `POST /api/v1/events/batch` endpoint with a JWT.
+- **Verification**: The collector test suite covers appended-line detection, restart-safe offsets, malformed JSON, batching, authenticated upload, retry backoff, heartbeat payload, configuration, retained failures, and shutdown. A live Docker-stack exercise received `202 Accepted` and persisted the canonical Linux-auth failure (`root`, `192.168.1.20`, `FAILURE`).
+- **Security Considerations**: YAML uses safe loading; tokens use environment expansion and are never logged; URLs are restricted to HTTP(S); no command execution or dynamic evaluation is used.
+- **Known Debt**: Retry queue and offsets are process-local; log rotation resumes at the beginning of the current file; heartbeat is a sanitized local log record because M00–M05 has no heartbeat API. No multi-replica coordination or durable queue exists.
+- **Status**: `VERIFIED_WITH_DEBT`
 
 ---
 
