@@ -1,4 +1,4 @@
-# CYBERWOLF SIEM
+# NEON SIEM
 
 > **Intelligent Security Information & Event Management Platform**  
 > *Hackathon MVP Specification & Implementation*
