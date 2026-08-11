@@ -248,4 +248,4 @@ The repository contains six authoritative engineering specification documents in
 
 ---
 
-**Cyberwolf SIEM — Cyberwolf Engineering Team**
+**NEON SIEM — NEON Engineering Team**
