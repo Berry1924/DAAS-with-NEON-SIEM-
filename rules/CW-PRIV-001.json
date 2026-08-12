@@ -1,0 +1,28 @@
+{
+  "rule_id": "CW-PRIV-001",
+  "name": "Privilege Escalation",
+  "description": "privilege/sudo/su activity following successful auth for same user within 300 seconds.",
+  "category": "privilege",
+  "event_types": ["privilege_escalation", "sudo", "su_command"],
+  "conditions": {
+    "requires_prior": {
+      "outcome": {"eq": "SUCCESS"},
+      "event_types": ["authentication", "ssh_login_accepted", "login_success"],
+      "min_count": 1,
+      "window_seconds": 300
+    }
+  },
+  "group_by": "username",
+  "threshold": 1,
+  "window_seconds": 300,
+  "severity": "CRITICAL",
+  "risk_weight": 80,
+  "mitre_metadata": {
+    "tactic_id": "TA0004",
+    "tactic_name": "Privilege Escalation",
+    "technique_id": "T1548",
+    "technique_name": "Abuse Elevation Control Mechanism"
+  },
+  "enabled": true,
+  "version": 1
+}

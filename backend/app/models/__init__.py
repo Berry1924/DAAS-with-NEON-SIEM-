@@ -7,6 +7,7 @@ from backend.app.models.enums import (
     EventOutcome,
     AssetStatus,
     AuditResult,
+    CorrelationStatus,
 )
 from backend.app.models.user import User
 from backend.app.models.asset import Asset
@@ -19,6 +20,7 @@ from backend.app.models.incident_alerts import IncidentAlert
 from backend.app.models.incident_timeline import IncidentTimeline
 from backend.app.models.incident_notes import IncidentNote
 from backend.app.models.audit_log import AuditLog
+from backend.app.models.correlation import CorrelationGroup
 
 __all__ = [
     "Base",
@@ -29,6 +31,7 @@ __all__ = [
     "EventOutcome",
     "AssetStatus",
     "AuditResult",
+    "CorrelationStatus",
     "User",
     "Asset",
     "Event",
@@ -40,4 +43,6 @@ __all__ = [
     "IncidentTimeline",
     "IncidentNote",
     "AuditLog",
+    "CorrelationGroup",
 ]
+

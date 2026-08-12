@@ -10,10 +10,10 @@ from backend.app.core.rate_limit import limiter
 from backend.app.core.security import verify_password, create_access_token, validate_password_strength
 from backend.app.db.session import get_db
 from backend.app.models.user import User
-from backend.app.models.audit_log import AuditLog
 from backend.app.models.enums import AuditResult
 from backend.app.schemas.user import UserRead
 from backend.app.api.deps import get_current_active_user
+from backend.app.services.audit_service import audit_service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -35,6 +35,7 @@ def login(
 ) -> Any:
     """Authenticate user with username and password, returning JWT access token."""
     request_id = getattr(request.state, "request_id", None)
+    client_ip = request.client.host if request.client else None
     username = None
     password = None
 
@@ -59,18 +60,18 @@ def login(
     )
 
     if not user or not verify_password(password, user.password_hash):
-        # Record audit log for failed login attempt (never logging password content!)
-        audit_log = AuditLog(
-            action="USER_LOGIN_FAILED",
+        # Audit failed login via AuditService
+        audit_service.log(
+            db=db,
+            action=audit_service.LOGIN_FAILURE,
+            actor_id=None,
             target_type="user",
             target_id=username,
             result=AuditResult.FAILURE,
             request_id=request_id,
-            source_ip=request.client.host if request.client else None,
-            audit_metadata={"reason": "Invalid credentials"}
+            source_ip=client_ip,
+            metadata={"reason": "Invalid credentials", "username": username}
         )
-        db.add(audit_log)
-        db.commit()
         raise auth_error
 
     if not user.is_active:
@@ -82,19 +83,18 @@ def login(
     # Update last login timestamp
     user.last_login_at = datetime.now(timezone.utc)
     
-    # Audit successful login
-    audit_log = AuditLog(
+    # Audit successful login via AuditService
+    audit_service.log(
+        db=db,
+        action=audit_service.LOGIN_SUCCESS,
         actor_id=user.id,
-        action="USER_LOGIN_SUCCESS",
         target_type="user",
         target_id=str(user.id),
         result=AuditResult.SUCCESS,
         request_id=request_id,
-        source_ip=request.client.host if request.client else None,
-        audit_metadata={"username": user.username, "role": user.role.value}
+        source_ip=client_ip,
+        metadata={"username": user.username, "role": user.role.value}
     )
-    db.add(audit_log)
-    db.commit()
     db.refresh(user)
 
     # Generate JWT
@@ -121,15 +121,17 @@ def logout(
 ) -> Any:
     """End session / logout current user (stateless JWT; client discards token)."""
     request_id = getattr(request.state, "request_id", None)
-    audit_log = AuditLog(
-        actor_id=current_user.id,
+    client_ip = request.client.host if request.client else None
+    audit_service.log(
+        db=db,
         action="USER_LOGOUT",
+        actor_id=current_user.id,
         target_type="user",
         target_id=str(current_user.id),
         result=AuditResult.SUCCESS,
         request_id=request_id,
-        audit_metadata={"username": current_user.username}
+        source_ip=client_ip,
+        metadata={"username": current_user.username}
     )
-    db.add(audit_log)
-    db.commit()
     return {"message": "Successfully logged out. Note: Stateless JWT tokens are discarded client-side and remain valid until expiration."}
+

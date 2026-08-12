@@ -1,0 +1,21 @@
+{
+  "rule_id": "CW-NET-001",
+  "name": "Port Scan Activity",
+  "description": ">=10 connection events from same source_ip to different destination_ip within 120 seconds.",
+  "category": "network",
+  "event_types": ["connection", "network_scan", "port_scan"],
+  "conditions": {"count_distinct": "destination_ip"},
+  "group_by": "source_ip",
+  "threshold": 10,
+  "window_seconds": 120,
+  "severity": "MEDIUM",
+  "risk_weight": 40,
+  "mitre_metadata": {
+    "tactic_id": "TA0007",
+    "tactic_name": "Discovery",
+    "technique_id": "T1046",
+    "technique_name": "Network Service Scanning"
+  },
+  "enabled": true,
+  "version": 1
+}

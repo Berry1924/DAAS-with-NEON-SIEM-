@@ -10,6 +10,12 @@ from backend.app.api.health import router as health_router
 from backend.app.api.auth import router as auth_router
 from backend.app.api.users import router as users_router
 from backend.app.api.events import router as events_router
+from backend.app.api.alerts import router as alerts_router
+from backend.app.api.correlations import router as correlations_router
+from backend.app.api.incidents import router as incidents_router
+from backend.app.api.audit import router as audit_router
+from backend.app.api.dashboard import router as dashboard_router
+from backend.app.api.demo import router as demo_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -39,6 +45,18 @@ app.include_router(health_router, prefix=settings.API_V1_STR)
 app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(users_router, prefix=settings.API_V1_STR)
 app.include_router(events_router, prefix=settings.API_V1_STR)
+app.include_router(alerts_router, prefix=settings.API_V1_STR)
+app.include_router(correlations_router, prefix=settings.API_V1_STR)
+app.include_router(incidents_router, prefix=settings.API_V1_STR)
+app.include_router(audit_router, prefix=settings.API_V1_STR)
+app.include_router(dashboard_router, prefix=settings.API_V1_STR)
+app.include_router(demo_router, prefix=settings.API_V1_STR)
+
+
+
+
+
+
 
 @app.get("/")
 async def root():

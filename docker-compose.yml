@@ -29,6 +29,7 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-cyberwolf}:${POSTGRES_PASSWORD:-development-only-postgres-password}@db:5432/${POSTGRES_DB:-cyberwolf_db}
       - SECRET_KEY=${SECRET_KEY:-development-only-placeholder-change-before-production}
       - ENVIRONMENT=development
+      - DEMO_MODE=${DEMO_MODE:-true}
     ports:
       - "8000:8000"
     depends_on:

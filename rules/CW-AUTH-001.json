@@ -1,0 +1,21 @@
+{
+  "rule_id": "CW-AUTH-001",
+  "name": "Brute Force Authentication",
+  "description": ">=5 FAILURE authentication events from same source_ip within 300 seconds.",
+  "category": "authentication",
+  "event_types": ["authentication", "ssh_login_failed", "login_failed"],
+  "conditions": {"outcome": {"eq": "FAILURE"}},
+  "group_by": "source_ip",
+  "threshold": 5,
+  "window_seconds": 300,
+  "severity": "HIGH",
+  "risk_weight": 60,
+  "mitre_metadata": {
+    "tactic_id": "TA0006",
+    "tactic_name": "Credential Access",
+    "technique_id": "T1110",
+    "technique_name": "Brute Force"
+  },
+  "enabled": true,
+  "version": 1
+}

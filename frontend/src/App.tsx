@@ -1,126 +1,529 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react';
-
-type Health = { status: string; app: string; version: string; environment?: string };
-type User = { username: string; display_name: string; role: string };
-type EventItem = {
-  id: string; timestamp: string; source_type: string; event_type: string;
-  source_ip?: string; destination_ip?: string; hostname?: string; username?: string;
-  action?: string; outcome: string; severity: string; source_event_id?: string;
-  raw_event: Record<string, unknown>; event_metadata: Record<string, unknown>;
-};
-type EventPage = { items: EventItem[]; page: number; page_size: number; total: number; pages: number };
-
-async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(path, {
-    ...options,
-    headers: { Accept: 'application/json', ...options.headers },
-  });
-  const rawBody = await response.text();
-  let body: unknown = null;
-  if (rawBody) {
-    try { body = JSON.parse(rawBody); } catch { /* rendered below as a safe response error */ }
-  }
-  if (!response.ok) {
-    const detail = typeof body === 'object' && body && 'detail' in body
-      ? String((body as { detail: unknown }).detail)
-      : rawBody || `${response.status} ${response.statusText}`;
-    throw new Error(`Request failed (${response.status}): ${detail}`);
-  }
-  if (body === null) throw new Error('Backend returned an empty or non-JSON response.');
-  return body as T;
-}
-
-const panel: React.CSSProperties = { background: '#111827', border: '1px solid #1f2937', borderRadius: 8, padding: '1.25rem', marginBottom: '1rem' };
-const input: React.CSSProperties = { width: '100%', boxSizing: 'border-box', background: '#0b1220', color: '#f3f4f6', border: '1px solid #334155', borderRadius: 4, padding: '0.55rem', marginTop: '0.25rem' };
-const button: React.CSSProperties = { background: '#0284c7', color: 'white', border: 0, borderRadius: 4, padding: '0.55rem 0.8rem', cursor: 'pointer', marginRight: '0.5rem', marginTop: '0.5rem' };
+import { useState, useEffect, useCallback } from 'react';
+import {
+  User,
+  Health,
+  IncidentDetail,
+  IncidentPage,
+  IncidentStatus,
+  Severity,
+  AuditPage,
+  DashboardSummary
+} from './types';
+import { request } from './api/client';
+import { TopBar } from './components/Header';
+import { Sidebar, NavTab } from './components/Sidebar';
+import { LoginView } from './components/LoginView';
+import { IncidentQueue } from './components/IncidentQueue';
+import { IncidentDetailView } from './components/IncidentDetail';
+import { AuditView } from './components/AuditView';
+import { DashboardView } from './components/DashboardView';
+import { Search, Activity } from 'lucide-react';
 
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [user, setUser] = useState<User | null>(null);
+
   const [token, setToken] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const [events, setEvents] = useState<EventPage | null>(null);
-  const [selected, setSelected] = useState<EventItem | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
+
+  // Dashboard State
+  const [dashboardSummary, setDashboardSummary] = useState<DashboardSummary | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
+
+  // Incidents State
+  const [incidentPage, setIncidentPage] = useState<IncidentPage | null>(null);
+  const [incidentsLoading, setIncidentsLoading] = useState(false);
+  const [incidentsError, setIncidentsError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<IncidentStatus | ''>('');
+  const [severityFilter, setSeverityFilter] = useState<Severity | ''>('');
+  const [minRiskFilter, setMinRiskFilter] = useState<string>('');
+  const [searchFilter, setSearchFilter] = useState<string>('');
+  const [incPageNum, setIncPageNum] = useState(1);
+
+  // Selected Incident Detail State
+  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
+  const [incidentDetail, setIncidentDetail] = useState<IncidentDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  // System Users List for Assignment Dropdown
+  const [usersList, setUsersList] = useState<User[]>([]);
+
+  // Audit Logs State
+  const [auditPage, setAuditPage] = useState<AuditPage | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState<string | null>(null);
+  const [auditActionFilter, setAuditActionFilter] = useState('');
+  const [auditReqIdFilter, setAuditReqIdFilter] = useState('');
+  const [auditActorFilter, setAuditActorFilter] = useState('');
+  const [auditPageNum, setAuditPageNum] = useState(1);
+
+  // M00-M05 Prototype State
   const [sourceType, setSourceType] = useState<'linux_auth' | 'json'>('linux_auth');
   const [payload, setPayload] = useState('{"message":"Accepted password for demo from 192.0.2.10 port 22 ssh2"}');
+  const [protoMessage, setProtoMessage] = useState<string | null>(null);
 
-  const loadHealth = useCallback(async () => {
-    try { setHealth(await api<Health>('/api/v1/health')); setHealthError(null); }
-    catch (error) { setHealth(null); setHealthError(error instanceof Error ? error.message : 'Unable to contact backend.'); }
+  const handleUnauthorized = useCallback(() => {
+    setToken(null);
+    setUser(null);
+    setAuthError('Session expired. Please sign in again.');
   }, []);
 
-  const loadEvents = useCallback(async (accessToken = token) => {
+  const loadHealth = useCallback(async () => {
+    try {
+      const h = await request<Health>('/api/v1/health');
+      setHealth(h);
+      setHealthError(null);
+    } catch (err) {
+      setHealth(null);
+      setHealthError(err instanceof Error ? err.message : 'Unable to connect to backend.');
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadHealth();
+  }, [loadHealth]);
+
+  // Load Incident Queue
+  const loadIncidents = useCallback(async (accessToken = token) => {
     if (!accessToken) return;
-    try { setEvents(await api<EventPage>('/api/v1/events?page_size=25', { headers: { Authorization: `Bearer ${accessToken}` } })); }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not load events.'); }
+    setIncidentsLoading(true);
+    setIncidentsError(null);
+
+    const query = new URLSearchParams();
+    query.set('page', String(incPageNum));
+    query.set('page_size', '20');
+    if (statusFilter) query.set('status', statusFilter);
+    if (severityFilter) query.set('severity', severityFilter);
+    if (minRiskFilter) query.set('min_risk', minRiskFilter);
+    if (searchFilter) query.set('source_ip', searchFilter);
+
+    try {
+      const res = await request<IncidentPage>(`/api/v1/incidents?${query.toString()}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }, handleUnauthorized);
+      setIncidentPage(res);
+    } catch (err) {
+      setIncidentsError(err instanceof Error ? err.message : 'Could not load incident queue.');
+    } finally {
+      setIncidentsLoading(false);
+    }
+  }, [token, incPageNum, statusFilter, severityFilter, minRiskFilter, searchFilter, handleUnauthorized]);
+
+  // Load Incident Detail
+  const loadIncidentDetail = useCallback(async (id: string, accessToken = token) => {
+    if (!accessToken || !id) return;
+    setDetailLoading(true);
+    setDetailError(null);
+
+    try {
+      const detail = await request<IncidentDetail>(`/api/v1/incidents/${id}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }, handleUnauthorized);
+      setIncidentDetail(detail);
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : 'Could not load incident detail.');
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [token, handleUnauthorized]);
+
+  // Load Audit Trail
+  const loadAuditLogs = useCallback(async (accessToken = token) => {
+    if (!accessToken) return;
+    setAuditLoading(true);
+    setAuditError(null);
+
+    const query = new URLSearchParams();
+    query.set('page', String(auditPageNum));
+    query.set('page_size', '20');
+    if (auditActionFilter) query.set('action', auditActionFilter);
+    if (auditReqIdFilter) query.set('request_id', auditReqIdFilter);
+    if (auditActorFilter) query.set('actor_name', auditActorFilter);
+
+    try {
+      const res = await request<AuditPage>(`/api/v1/audit?${query.toString()}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }, handleUnauthorized);
+      setAuditPage(res);
+    } catch (err) {
+      setAuditError(err instanceof Error ? err.message : 'Could not load audit logs.');
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [token, auditPageNum, auditActionFilter, auditReqIdFilter, auditActorFilter, handleUnauthorized]);
+
+  // Load Users List for assignment dropdown
+  const loadUsersList = useCallback(async (accessToken = token) => {
+    if (!accessToken) return;
+    try {
+      const res = await request<User[]>('/api/v1/users', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      setUsersList(res);
+    } catch {
+      // Fallback
+    }
   }, [token]);
 
-  useEffect(() => { void loadHealth(); }, [loadHealth]);
+  // Load Dashboard Summary
+  const loadDashboardSummary = useCallback(async (accessToken = token) => {
+    if (!accessToken) return;
+    setDashboardLoading(true);
+    setDashboardError(null);
 
-  async function login(event: FormEvent) {
-    event.preventDefault();
     try {
-      const result = await api<{ access_token: string; user: User }>('/api/v1/auth/login', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }),
-      });
-      setToken(result.access_token); setUser(result.user); setPassword(''); setMessage(`Signed in as ${result.user.username}.`);
-      await loadEvents(result.access_token);
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Login failed.'); }
-  }
+      const summary = await request<DashboardSummary>('/api/v1/dashboard/summary', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }, handleUnauthorized);
+      setDashboardSummary(summary);
+    } catch (err) {
+      setDashboardError(err instanceof Error ? err.message : 'Could not load dashboard summary.');
+    } finally {
+      setDashboardLoading(false);
+    }
+  }, [token, handleUnauthorized]);
 
-  async function submitTelemetry(batch = false) {
-    if (!token) { setMessage('Sign in as an ADMIN or ANALYST to submit telemetry.'); return; }
-    let parsedPayload: Record<string, unknown>;
-    try { parsedPayload = JSON.parse(payload) as Record<string, unknown>; }
-    catch { setMessage('Payload must be valid JSON.'); return; }
-    const event = { source_type: sourceType, source_event_id: `ui-${Date.now()}`, payload: parsedPayload };
-    const body = batch ? [event, { source_type: 'json', source_event_id: `ui-batch-${Date.now()}`, payload: { event: 'ui_batch_demo', user: user?.username } }] : event;
+  useEffect(() => {
+    if (token) {
+      if (activeTab === 'dashboard') {
+        void loadDashboardSummary();
+      } else if (activeTab === 'incidents') {
+        if (selectedIncidentId) {
+          void loadIncidentDetail(selectedIncidentId);
+        } else {
+          void loadIncidents();
+        }
+      } else if (activeTab === 'audit' && user?.role === 'ADMIN') {
+        void loadAuditLogs();
+      }
+      void loadUsersList();
+    }
+  }, [token, activeTab, selectedIncidentId, loadDashboardSummary, loadIncidents, loadIncidentDetail, loadAuditLogs, loadUsersList, user?.role]);
+
+  // Login Handler
+  const handleLogin = async (usr: string, pass: string) => {
+    setAuthLoading(true);
+    setAuthError(null);
     try {
-      const result = await api<{ accepted: number; duplicates?: number }>('/api/v1/events' + (batch ? '/batch' : ''), {
-        method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      const res = await request<{ access_token: string; user: User }>('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: usr, password: pass }),
       });
-      setMessage(`Telemetry accepted: ${result.accepted} event(s)${result.duplicates ? `, ${result.duplicates} duplicate(s)` : ''}.`);
-      await loadEvents();
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Telemetry submission failed.'); }
-  }
+      setToken(res.access_token);
+      setUser(res.user);
+      setActiveTab('incidents');
+      void loadIncidents(res.access_token);
+      void loadUsersList(res.access_token);
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Authentication failed.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
-  async function openEvent(eventId: string) {
+  // Logout Handler
+  const handleLogout = () => {
+    setToken(null);
+    setUser(null);
+    setSelectedIncidentId(null);
+    setIncidentDetail(null);
+    setIncidentPage(null);
+    setAuditPage(null);
+  };
+
+  // Incident Actions
+  const handleUpdateStatus = async (newStatus: IncidentStatus, comment?: string) => {
+    if (!token || !selectedIncidentId) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      await request(`/api/v1/incidents/${selectedIncidentId}/status`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus, comment }),
+      }, handleUnauthorized);
+      await loadIncidentDetail(selectedIncidentId);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Status update failed.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAssignAnalyst = async (assignedTo: string | null) => {
+    if (!token || !selectedIncidentId) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      await request(`/api/v1/incidents/${selectedIncidentId}/assign`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assigned_to: assignedTo }),
+      }, handleUnauthorized);
+      await loadIncidentDetail(selectedIncidentId);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Assignment failed.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAddNote = async (body: string) => {
+    if (!token || !selectedIncidentId) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      await request(`/api/v1/incidents/${selectedIncidentId}/notes`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body }),
+      }, handleUnauthorized);
+      await loadIncidentDetail(selectedIncidentId);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Adding note failed.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Prototype Actions
+  const submitTelemetry = async (batch = false) => {
     if (!token) return;
-    try { setSelected(await api<EventItem>(`/api/v1/events/${eventId}`, { headers: { Authorization: `Bearer ${token}` } })); }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not load event detail.'); }
+    let parsedPayload: Record<string, unknown>;
+    try {
+      parsedPayload = JSON.parse(payload) as Record<string, unknown>;
+    } catch {
+      setProtoMessage('Payload must be valid JSON.');
+      return;
+    }
+    const eventObj = { source_type: sourceType, source_event_id: `ui-${Date.now()}`, payload: parsedPayload };
+    const body = batch
+      ? [eventObj, { source_type: 'json', source_event_id: `ui-batch-${Date.now()}`, payload: { event: 'ui_batch_demo', user: user?.username } }]
+      : eventObj;
+    try {
+      const res = await request<{ accepted: number; duplicates?: number }>('/api/v1/events' + (batch ? '/batch' : ''), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      setProtoMessage(`Telemetry accepted: ${res.accepted} event(s)${res.duplicates ? `, ${res.duplicates} duplicate(s)` : ''}.`);
+    } catch (err) {
+      setProtoMessage(err instanceof Error ? err.message : 'Telemetry submission failed.');
+    }
+  };
+
+  // ── Render: Login ──
+  if (!user) {
+    return <LoginView onLogin={handleLogin} loading={authLoading} error={authError} />;
   }
 
-  return <div style={{ padding: '2rem', maxWidth: 1100, margin: '0 auto' }}>
-    <header style={{ borderBottom: '1px solid #1f2937', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
-      <h1 style={{ color: '#38bdf8', margin: 0, fontSize: '1.8rem' }}>CYBERWOLF SIEM</h1>
-      <p style={{ color: '#9ca3af', margin: '0.3rem 0 0' }}>M00–M05 local security telemetry prototype</p>
-    </header>
+  // ── Render: Authenticated App Shell ──
+  return (
+    <div className="app-shell">
+      <Sidebar
+        user={user}
+        activeTab={activeTab}
+        setActiveTab={(tab) => {
+          setSelectedIncidentId(null);
+          setIncidentDetail(null);
+          setActiveTab(tab);
+        }}
+        onLogout={handleLogout}
+        openIncidents={dashboardSummary?.open_incidents}
+      />
 
-    <section style={panel}><h2 style={{ marginTop: 0 }}>Backend connection</h2>
-      {health ? <span style={{ color: '#4ade80' }}>● Connected — {health.app} {health.version} ({health.status})</span> : <span style={{ color: '#f87171' }}>● {healthError || 'Connecting…'}</span>}
-      <button type="button" style={button} onClick={() => void loadHealth()}>Refresh health</button>
-    </section>
+      <div className="app-main">
+        <TopBar
+          health={health}
+          healthError={healthError}
+          onRefreshHealth={() => void loadHealth()}
+        />
 
-    {!user ? <section style={panel}><h2 style={{ marginTop: 0 }}>Sign in</h2><form onSubmit={login}>
-      <label>Username<input style={input} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" required /></label>
-      <label>Password<input style={input} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required /></label>
-      <button style={button} type="submit">Login</button>
-    </form><p style={{ color: '#9ca3af', marginBottom: 0 }}>Create a local administrator with the documented bootstrap command; this UI never stores credentials or tokens in browser storage.</p></section>
-    : <section style={panel}><strong>Authenticated:</strong> {user.display_name} ({user.role}) <button type="button" style={button} onClick={() => { setToken(null); setUser(null); setEvents(null); setSelected(null); setMessage('Signed out locally.'); }}>Logout</button></section>}
+        <div className="app-content animate-fadeIn">
+          {activeTab === 'dashboard' && (
+            <DashboardView
+              summary={dashboardSummary}
+              loading={dashboardLoading}
+              error={dashboardError}
+              onRefresh={() => void loadDashboardSummary()}
+              onSelectIncident={(id) => {
+                setSelectedIncidentId(id);
+                setActiveTab('incidents');
+                void loadIncidentDetail(id);
+              }}
+            />
+          )}
 
-    {user && <><section style={panel}><h2 style={{ marginTop: 0 }}>Submit synthetic telemetry</h2>
-      <label>Source type<select style={input} value={sourceType} onChange={(e) => setSourceType(e.target.value as 'linux_auth' | 'json')}><option value="linux_auth">Linux authentication</option><option value="json">JSON</option></select></label>
-      <label>Payload (JSON)<textarea style={{ ...input, minHeight: 110 }} value={payload} onChange={(e) => setPayload(e.target.value)} /></label>
-      <button type="button" style={button} onClick={() => void submitTelemetry(false)}>Submit event</button>
-      <button type="button" style={button} onClick={() => void submitTelemetry(true)}>Submit demo batch</button>
-    </section>
-    <section style={panel}><h2 style={{ marginTop: 0 }}>Event explorer</h2><button type="button" style={button} onClick={() => void loadEvents()}>Refresh events</button>
-      {events && <><p>{events.total} event(s), page {events.page} of {events.pages || 1}</p><div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr><th>Time</th><th>Source</th><th>Type</th><th>User</th><th>Outcome</th><th>Severity</th><th /></tr></thead><tbody>{events.items.map((item) => <tr key={item.id}><td>{new Date(item.timestamp).toLocaleString()}</td><td>{item.source_type}</td><td>{item.event_type}</td><td>{item.username || '—'}</td><td>{item.outcome}</td><td>{item.severity}</td><td><button type="button" style={button} onClick={() => void openEvent(item.id)}>Detail</button></td></tr>)}</tbody></table></div></>}
-    </section>
-    {selected && <section style={panel}><h2 style={{ marginTop: 0 }}>Event detail</h2><p><strong>{selected.id}</strong></p><p>{selected.source_type} / {selected.event_type} / {selected.outcome} / {selected.severity}</p><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', background: '#0b1220', padding: '0.75rem' }}>{JSON.stringify({ raw_event: selected.raw_event, metadata: selected.event_metadata }, null, 2)}</pre></section>}</>}
-    {message && <p role="status" style={{ color: '#fbbf24' }}>{message}</p>}
-  </div>;
+          {activeTab === 'incidents' && (
+            selectedIncidentId ? (
+              detailLoading ? (
+                <div className="state-container">
+                  <div className="state-icon animate-spin">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                  </div>
+                  <div className="state-title">Loading incident details…</div>
+                </div>
+              ) : detailError ? (
+                <div className="state-error" style={{ maxWidth: 600, margin: '2rem auto' }}>
+                  <div className="font-bold mb-sm">Failed to load incident detail:</div>
+                  <div className="mb-md">{detailError}</div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setSelectedIncidentId(null);
+                      setIncidentDetail(null);
+                    }}
+                  >
+                    Back to Queue
+                  </button>
+                </div>
+              ) : incidentDetail ? (
+                <IncidentDetailView
+                  incident={incidentDetail}
+                  currentUser={user}
+                  usersList={usersList}
+                  onBack={() => {
+                    setSelectedIncidentId(null);
+                    setIncidentDetail(null);
+                    void loadIncidents();
+                  }}
+                  onUpdateStatus={handleUpdateStatus}
+                  onAssignAnalyst={handleAssignAnalyst}
+                  onAddNote={handleAddNote}
+                  actionLoading={actionLoading}
+                  actionError={actionError}
+                />
+              ) : null
+            ) : (
+              <IncidentQueue
+                incidents={incidentPage?.items || []}
+                total={incidentPage?.total || 0}
+                page={incPageNum}
+                pages={incidentPage?.pages || 1}
+                loading={incidentsLoading}
+                error={incidentsError}
+                statusFilter={statusFilter}
+                severityFilter={severityFilter}
+                minRiskFilter={minRiskFilter}
+                searchFilter={searchFilter}
+                setStatusFilter={setStatusFilter}
+                setSeverityFilter={setSeverityFilter}
+                setMinRiskFilter={setMinRiskFilter}
+                setSearchFilter={setSearchFilter}
+                onPageChange={(p) => setIncPageNum(p)}
+                onRefresh={() => void loadIncidents()}
+                onSelectIncident={(id) => {
+                  setSelectedIncidentId(id);
+                  void loadIncidentDetail(id);
+                }}
+              />
+            )
+          )}
+
+          {activeTab === 'audit' && (
+            <AuditView
+              auditLogs={auditPage?.items || []}
+              total={auditPage?.total || 0}
+              page={auditPageNum}
+              pages={auditPage?.pages || 1}
+              loading={auditLoading}
+              error={auditError}
+              currentUser={user}
+              actionFilter={auditActionFilter}
+              requestIdFilter={auditReqIdFilter}
+              actorFilter={auditActorFilter}
+              setActionFilter={setAuditActionFilter}
+              setRequestIdFilter={setAuditReqIdFilter}
+              setActorFilter={setAuditActorFilter}
+              onPageChange={(p) => setAuditPageNum(p)}
+              onRefresh={() => void loadAuditLogs()}
+            />
+          )}
+
+          {activeTab === 'telemetry' && (
+            <div style={{ maxWidth: 1000 }}>
+              <div className="page-header">
+                <div>
+                  <h2 className="page-header-title">
+                    <Activity size={22} className="text-primary" />
+                    <span>Submit Telemetry</span>
+                  </h2>
+                  <div className="page-header-sub">Inject synthetic security events into the pipeline</div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="mb-md">
+                  <label className="input-label">Source Type</label>
+                  <select
+                    className="input"
+                    value={sourceType}
+                    onChange={(e) => setSourceType(e.target.value as 'linux_auth' | 'json')}
+                  >
+                    <option value="linux_auth">Linux Authentication Log</option>
+                    <option value="json">Raw JSON</option>
+                  </select>
+                </div>
+
+                <div className="mb-md">
+                  <label className="input-label">JSON Payload</label>
+                  <textarea
+                    className="input input-code"
+                    value={payload}
+                    onChange={(e) => setPayload(e.target.value)}
+                    rows={5}
+                  />
+                </div>
+
+                <div className="flex gap-sm">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => void submitTelemetry(false)}
+                  >
+                    Submit Event
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => void submitTelemetry(true)}
+                  >
+                    Submit Demo Batch
+                  </button>
+                </div>
+              </div>
+
+              {protoMessage && (
+                <p role="status" className="text-warning font-bold mt-md">
+                  {protoMessage}
+                </p>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'events' && (
+            <div className="state-container">
+              <Search size={48} className="state-icon" />
+              <div className="state-title">Event Search</div>
+              <div className="state-desc">
+                Event search and investigation tools. Use the Ingest tab to submit telemetry, then view events via the Incident evidence panel.
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }

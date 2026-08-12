@@ -40,3 +40,8 @@ class AuditResult(str, enum.Enum):
     SUCCESS = "SUCCESS"
     FAILURE = "FAILURE"
     DENIED = "DENIED"
+
+class CorrelationStatus(str, enum.Enum):
+    ACTIVE = "ACTIVE"
+    RESOLVED = "RESOLVED"
+

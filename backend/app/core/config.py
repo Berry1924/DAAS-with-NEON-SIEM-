@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     # override these values through environment configuration.
     SECRET_KEY: str = "development-only-placeholder-change-before-production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
+    DEMO_MODE: bool = True  # Set to False in production to disable demo endpoints
     
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: int = 5432

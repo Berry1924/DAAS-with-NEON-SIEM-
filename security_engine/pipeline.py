@@ -1,6 +1,7 @@
 import uuid
+import logging
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.orm import Session
 
 from backend.app.schemas.telemetry import IngestionEnvelope
@@ -8,6 +9,10 @@ from backend.app.models.event import Event
 from backend.app.repositories.event_repository import EventRepository
 from security_engine.parsers.registry import parser_registry
 from security_engine.normalization.normalizer import event_normalizer
+from security_engine.detection.evaluator import rule_evaluator
+from security_engine.correlation.engine import correlation_engine
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class ProcessingResult:
@@ -17,7 +22,7 @@ class ProcessingResult:
     error: Optional[str] = None
 
 class ProcessingService:
-    """Orchestration service running Parsing -> Normalization -> Persistence pipeline."""
+    """Orchestration service running Parsing -> Normalization -> Persistence -> Detection -> Correlation pipeline."""
 
     def process(self, envelope: IngestionEnvelope, db: Session) -> ProcessingResult:
         """Process a single IngestionEnvelope end-to-end."""
@@ -49,9 +54,20 @@ class ProcessingService:
         try:
             repo = EventRepository(db)
             persisted_event = repo.create(canonical_event)
-            return ProcessingResult(status="NORMALIZED", event_id=persisted_event.id)
         except Exception as err:
             db.rollback()
             return ProcessingResult(status="VALIDATION_FAILED", error=f"Persistence error: {str(err)}")
 
+        # 5. Detection Engine & 6. Correlation Engine Evaluation
+        try:
+            alerts = rule_evaluator.evaluate(persisted_event, db)
+            for alert in alerts:
+                correlation_engine.correlate_alert(alert, db)
+        except Exception as err:
+            logger.error(f"Detection/Correlation evaluation error: {err}", exc_info=True)
+
+        return ProcessingResult(status="NORMALIZED", event_id=persisted_event.id)
+
+
 processing_service = ProcessingService()
+

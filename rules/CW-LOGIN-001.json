@@ -1,0 +1,28 @@
+{
+  "rule_id": "CW-LOGIN-001",
+  "name": "Suspicious Login After Failures",
+  "description": "SUCCESS login follows >=3 FAILURE events from same source_ip within 600 seconds.",
+  "category": "authentication",
+  "event_types": ["authentication", "ssh_login_accepted", "login_success"],
+  "conditions": {
+    "outcome": {"eq": "SUCCESS"},
+    "requires_prior": {
+      "outcome": {"eq": "FAILURE"},
+      "min_count": 3,
+      "window_seconds": 600
+    }
+  },
+  "group_by": "source_ip",
+  "threshold": 1,
+  "window_seconds": 600,
+  "severity": "HIGH",
+  "risk_weight": 65,
+  "mitre_metadata": {
+    "tactic_id": "TA0003",
+    "tactic_name": "Persistence",
+    "technique_id": "T1078",
+    "technique_name": "Valid Accounts"
+  },
+  "enabled": true,
+  "version": 1
+}
